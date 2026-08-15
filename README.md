@@ -18,6 +18,8 @@ a cap you set. No proxy, no daemon, no credentials, no account.
 
 ![breakerbox blocks an 8× p4d.24xlarge EC2 launch before it runs — DENY, estimated $6292.34, nothing billed](docs/demo.svg)
 
+**[Live site & demo →](https://shopdevx.github.io/breakerbox/)**  ·  **[How it works](https://shopdevx.github.io/breakerbox/how-it-works.html)**
+
 ```
 $ breakerbox check "aws ec2 run-instances --instance-type p4d.24xlarge --count 8"
 
