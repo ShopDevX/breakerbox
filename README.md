@@ -1,7 +1,7 @@
 # breakerbox
 
-[![npm version](https://img.shields.io/npm/v/breakerbox?color=A8471C&label=npm)](https://www.npmjs.com/package/breakerbox)
-[![npm downloads](https://img.shields.io/npm/dm/breakerbox?color=A8471C)](https://www.npmjs.com/package/breakerbox)
+[![npm version](https://img.shields.io/npm/v/@jaigally/breakerbox?color=A8471C&label=npm)](https://www.npmjs.com/package/@jaigally/breakerbox)
+[![npm downloads](https://img.shields.io/npm/dm/@jaigally/breakerbox?color=A8471C)](https://www.npmjs.com/package/@jaigally/breakerbox)
 [![CI](https://github.com/ShopDevX/breakerbox/actions/workflows/ci.yml/badge.svg)](https://github.com/ShopDevX/breakerbox/actions/workflows/ci.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-informational)](LICENSE)
 ![node ≥18.17](https://img.shields.io/badge/node-%E2%89%A518.17-informational)
@@ -60,7 +60,7 @@ the `terraform apply`. That gap is what breakerbox covers.
 ## Install
 
 ```bash
-npm i -g breakerbox
+npm i -g @jaigally/breakerbox
 breakerbox init
 ```
 
