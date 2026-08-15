@@ -1,5 +1,12 @@
 # breakerbox
 
+[![npm version](https://img.shields.io/npm/v/breakerbox?color=A8471C&label=npm)](https://www.npmjs.com/package/breakerbox)
+[![npm downloads](https://img.shields.io/npm/dm/breakerbox?color=A8471C)](https://www.npmjs.com/package/breakerbox)
+[![CI](https://github.com/ShopDevX/breakerbox/actions/workflows/ci.yml/badge.svg)](https://github.com/ShopDevX/breakerbox/actions/workflows/ci.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-informational)](LICENSE)
+![node ≥18.17](https://img.shields.io/badge/node-%E2%89%A518.17-informational)
+![dependencies: 0](https://img.shields.io/badge/dependencies-0-2C6A4E)
+
 **Hard spend caps and a kill-switch for the non-LLM actions your AI agent takes.**
 
 Your LLM gateway meters tokens. It does not see the `aws ec2 run-instances` your
@@ -8,6 +15,8 @@ agent just ran.
 breakerbox sits in Claude Code's `PreToolUse` hook, reads every Bash command
 *before* it executes, estimates what it will cost, and blocks it if that breaches
 a cap you set. No proxy, no daemon, no credentials, no account.
+
+![breakerbox blocks an 8× p4d.24xlarge EC2 launch before it runs — DENY, estimated $6292.34, nothing billed](docs/demo.svg)
 
 ```
 $ breakerbox check "aws ec2 run-instances --instance-type p4d.24xlarge --count 8"

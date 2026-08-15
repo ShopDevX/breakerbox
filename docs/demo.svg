@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="392" viewBox="0 0 820 392" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" role="img" aria-label="breakerbox blocks an 8x p4d.24xlarge EC2 launch: DENY, estimated 6292.34 dollars, over the per-action and session caps. Nothing billed.">
+  <rect x="0.5" y="0.5" width="819" height="391" rx="8" fill="#171C21" stroke="#28313A"/>
+  <line x1="0" y1="44" x2="820" y2="44" stroke="#28313A"/>
+  <circle cx="26" cy="22" r="6" fill="#ff5f57"/>
+  <circle cx="46" cy="22" r="6" fill="#febc2e"/>
+  <circle cx="66" cy="22" r="6" fill="#28c840"/>
+  <text x="98" y="27" fill="#7C8994" font-size="13">breakerbox — spend guardrail</text>
+
+  <text font-size="13.5"><tspan x="28" y="86" fill="#7C8994">$ </tspan><tspan fill="#E5834F">breakerbox check "aws ec2 run-instances --instance-type p4d.24xlarge --count 8"</tspan></text>
+
+  <text x="28" y="130" font-size="13.5"><tspan fill="#E8776B" font-weight="700">DENY</tspan><tspan fill="#D8DEE4">  estimated </tspan><tspan fill="#E8776B" font-weight="700">$6292.34</tspan></text>
+
+  <text x="28" y="170" font-size="13.5" fill="#7C8994">Billable actions</text>
+  <text x="28" y="194" font-size="13.5"><tspan fill="#D8DEE4">  EC2 p4d.24xlarge x8  </tspan><tspan fill="#E8776B" font-weight="700">$6292.34</tspan></text>
+  <text x="28" y="216" font-size="12.5" fill="#7C8994">  aws.ec2.run-instances · $32.7726/hr · qty 8 · high confidence</text>
+
+  <text x="28" y="256" font-size="13.5" fill="#7C8994">Why</text>
+  <text x="28" y="280" font-size="13.5" fill="#D8DEE4">  - Single action over the per-action cap of $20.00.</text>
+  <text x="28" y="304" font-size="13.5" fill="#D8DEE4">  - Session spend would reach $6292.34, over the $50.00 cap.</text>
+
+  <line x1="0" y1="340" x2="820" y2="340" stroke="#28313A"/>
+  <text x="28" y="366" font-size="12.5"><tspan fill="#74C29A" font-weight="700">✓ nothing billed</tspan><tspan fill="#7C8994">  ·  verdict computed in Claude Code's PreToolUse hook  ·  ~48ms</tspan></text>
+</svg>
