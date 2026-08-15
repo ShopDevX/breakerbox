@@ -1,0 +1,43 @@
+{
+  "name": "breakerbox",
+  "version": "0.1.0",
+  "description": "Hard spend caps and a kill-switch for the non-LLM actions your AI coding agent takes.",
+  "type": "module",
+  "license": "MIT",
+  "author": "ShopDevX",
+  "bin": {
+    "breakerbox": "bin/breakerbox.js"
+  },
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "engines": {
+    "node": ">=18.17"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\"",
+    "refresh-prices": "node scripts/refresh-prices.js"
+  },
+  "keywords": [
+    "claude-code",
+    "ai-agent",
+    "guardrail",
+    "spend-cap",
+    "kill-switch",
+    "finops",
+    "circuit-breaker",
+    "agent-safety",
+    "cloud-cost"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ShopDevX/breakerbox.git"
+  },
+  "homepage": "https://github.com/ShopDevX/breakerbox#readme"
+}

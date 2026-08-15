@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>breakerbox — a spend limit for what your AI agent does outside the chat</title>
+<meta name="description" content="Hard spend caps and a kill-switch for the non-LLM actions your AI coding agent takes. breakerbox reads every Bash command before it runs, estimates the real cloud cost, and blocks it if it breaches a cap you set. MIT, zero dependencies, local-first." />
+<meta property="og:title" content="breakerbox — a spend limit for what your AI agent does outside the chat" />
+<meta property="og:description" content="Your LLM gateway meters tokens. It never sees the aws ec2 run-instances your agent just ran. breakerbox does." />
+<meta property="og:type" content="website" />
+<meta name="theme-color" content="#EDEFF1" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#0F1418" media="(prefers-color-scheme: dark)" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%23A8471C'/%3E%3Cpath d='M12 5.5v6' fill='none' stroke='white' stroke-width='2.1' stroke-linecap='round'/%3E%3Cpath d='M8 8.2a5 5 0 1 0 8 0' fill='none' stroke='white' stroke-width='2.1' stroke-linecap='round'/%3E%3C/svg%3E" />
+<style>
+  /* ---------- tokens: light is the base state (from docs/how-it-works.html) ---------- */
+  :root {
+    --ground:#EDEFF1; --surface:#FFFFFF; --surface-2:#F4F6F7; --plate:#E5E9EC;
+    --ink:#12171C; --ink-2:#3F4A54; --muted:#6B7783; --line:#D2D9DE; --line-2:#B4BFC7;
+    --accent:#A8471C; --accent-ink:#8E3C17; --accent-bg:#F5E6DE;
+    --ok:#2C6A4E; --ok-bg:#E2EEE8; --warn:#8A5E10; --warn-bg:#F5EDDA; --bad:#9E2B21; --bad-bg:#F6E3E1;
+    --term-bg:#171C21; --term-ink:#D8DEE4; --term-muted:#7C8994;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", "Roboto Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --measure:68ch; --wide:1080px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#0F1418; --surface:#161C22; --surface-2:#1C232A; --plate:#12181D;
+      --ink:#E3E8ED; --ink-2:#B6C1CB; --muted:#8794A0; --line:#28313A; --line-2:#3A454F;
+      --accent:#E5834F; --accent-ink:#F0A075; --accent-bg:#2E2019;
+      --ok:#74C29A; --ok-bg:#16261F; --warn:#DCB365; --warn-bg:#2A2314; --bad:#E8776B; --bad-bg:#2C1A18;
+      --term-bg:#0B0F13; --term-ink:#D8DEE4; --term-muted:#6F7C87;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0F1418; --surface:#161C22; --surface-2:#1C232A; --plate:#12181D;
+    --ink:#E3E8ED; --ink-2:#B6C1CB; --muted:#8794A0; --line:#28313A; --line-2:#3A454F;
+    --accent:#E5834F; --accent-ink:#F0A075; --accent-bg:#2E2019;
+    --ok:#74C29A; --ok-bg:#16261F; --warn:#DCB365; --warn-bg:#2A2314; --bad:#E8776B; --bad-bg:#2C1A18;
+    --term-bg:#0B0F13; --term-ink:#D8DEE4; --term-muted:#6F7C87;
+  }
+
+  /* ---------- base ---------- */
+  * { box-sizing: border-box; }
+  body {
+    background: var(--ground); color: var(--ink); font-family: var(--sans);
+    font-size: 17px; line-height: 1.65; -webkit-font-smoothing: antialiased;
+    margin: 0; padding: 0;
+  }
+  .wrap { max-width: var(--wide); margin: 0 auto; padding: 0 20px; }
+  .col  { max-width: var(--measure); }
+  p { margin: 0 0 1.1em; color: var(--ink-2); }
+  strong { color: var(--ink); font-weight: 650; }
+  a { color: var(--accent); text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ---------- top bar ---------- */
+  .bar {
+    position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--ground) 86%, transparent);
+    backdrop-filter: blur(8px); border-bottom: 1px solid var(--line);
+  }
+  .bar .wrap { display: flex; align-items: center; gap: 18px; height: 56px; }
+  .brand { display: flex; align-items: center; gap: 9px; font-family: var(--mono); font-weight: 700; font-size: 16px; letter-spacing: -.02em; color: var(--ink); text-decoration: none; }
+  .brand .mk { width: 22px; height: 22px; border-radius: 5px; background: var(--accent); display: grid; place-items: center; flex: none; }
+  .bar nav { margin-left: auto; display: flex; align-items: center; gap: 22px; font-family: var(--mono); font-size: 13px; }
+  .bar nav a { color: var(--muted); text-decoration: none; }
+  .bar nav a:hover { color: var(--ink); }
+  .ttoggle { font-family: var(--mono); font-size: 12px; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 3px; padding: 6px 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .ttoggle:hover { border-color: var(--line-2); color: var(--ink); }
+  @media (max-width: 640px) { .bar nav a.hideable { display: none; } }
+
+  /* ---------- masthead ---------- */
+  .mast { border-bottom: 1px solid var(--line); padding: 60px 0 46px; }
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .13em; text-transform: uppercase; color: var(--muted); margin: 0 0 22px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .eyebrow span:not(:last-child)::after { content: "·"; margin-left: 10px; color: var(--line-2); }
+  h1 { font-family: var(--mono); font-size: clamp(40px, 8vw, 68px); font-weight: 700; letter-spacing: -.03em; line-height: 1; margin: 0 0 10px; color: var(--ink); }
+  .tagline { font-family: var(--mono); font-size: clamp(14px, 2.2vw, 16px); color: var(--accent); letter-spacing: -.01em; margin: 0 0 26px; }
+  .lede { font-size: clamp(19px, 2.4vw, 23px); line-height: 1.5; color: var(--ink); max-width: 62ch; text-wrap: balance; margin: 0 0 32px; }
+  .lede em { font-style: normal; color: var(--accent); }
+
+  /* ---------- install bar + buttons ---------- */
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .install { display: inline-flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--line-2); border-radius: 3px; padding: 11px 14px; font-family: var(--mono); font-size: 14px; color: var(--ink); }
+  .install .dol { color: var(--accent); }
+  .install code { color: var(--ink); }
+  .install button { font-family: var(--mono); font-size: 11px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--surface-2); border: 1px solid var(--line); border-radius: 2px; padding: 5px 9px; cursor: pointer; }
+  .install button:hover { color: var(--ink); border-color: var(--line-2); }
+  .btn { font-family: var(--mono); font-size: 13.5px; font-weight: 650; letter-spacing: .01em; padding: 12px 18px; border-radius: 3px; border: 1px solid var(--line-2); color: var(--ink); background: var(--surface); text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+  .btn.primary:hover { filter: brightness(1.06); }
+
+  /* ---------- sections ---------- */
+  section { padding: 58px 0; border-bottom: 1px solid var(--line); }
+  h2 { font-family: var(--mono); font-size: 13px; letter-spacing: .13em; text-transform: uppercase; color: var(--accent); font-weight: 650; margin: 0 0 8px; }
+  h3 { font-size: clamp(24px, 3.4vw, 32px); line-height: 1.18; letter-spacing: -.02em; font-weight: 650; margin: 0 0 20px; color: var(--ink); text-wrap: balance; max-width: 26ch; }
+  h4 { font-family: var(--mono); font-size: 14px; font-weight: 650; margin: 0 0 8px; color: var(--ink); letter-spacing: -.01em; }
+
+  .pull { font-family: var(--mono); font-size: clamp(19px, 3vw, 27px); line-height: 1.35; letter-spacing: -.02em; color: var(--ink); border-top: 2px solid var(--accent); padding-top: 20px; margin: 8px 0 0; max-width: 32ch; }
+  .pull em { font-style: normal; color: var(--accent); }
+
+  /* ---------- verdict pills ---------- */
+  .pill { font-family: var(--mono); font-size: 11px; font-weight: 650; letter-spacing: .09em; text-transform: uppercase; padding: 3px 9px; border-radius: 2px; white-space: nowrap; display: inline-block; }
+  .pill.ok { color: var(--ok); background: var(--ok-bg); }
+  .pill.warn { color: var(--warn); background: var(--warn-bg); }
+  .pill.bad { color: var(--bad); background: var(--bad-bg); }
+
+  /* ---------- table ---------- */
+  .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 3px; background: var(--surface); margin-top: 26px; }
+  table { border-collapse: collapse; width: 100%; min-width: 660px; font-size: 15px; }
+  th { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; text-align: left; padding: 13px 18px; border-bottom: 1px solid var(--line); background: var(--surface-2); white-space: nowrap; }
+  td { padding: 15px 18px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--ink-2); }
+  tr:last-child td { border-bottom: 0; }
+  td.what { color: var(--ink); font-weight: 550; }
+  td code, .ic { font-family: var(--mono); font-size: 12.5px; color: var(--accent-ink); background: var(--accent-bg); padding: 2px 6px; border-radius: 2px; display: inline-block; line-height: 1.5; }
+
+  /* ---------- terminal ---------- */
+  .term { background: var(--term-bg); border: 1px solid var(--line); border-radius: 3px; padding: 20px 22px; overflow-x: auto; margin: 26px 0 0; }
+  .term pre { font-family: var(--mono); font-size: 13.5px; line-height: 1.7; color: var(--term-ink); margin: 0; }
+  .term .c-muted { color: var(--term-muted); }
+  .term .c-bad { color: #E8776B; font-weight: 650; }
+  .term .c-ok { color: #74C29A; font-weight: 650; }
+  .term .c-warn { color: #DCB365; font-weight: 650; }
+  .term .c-acc { color: #E5834F; }
+  .cap { font-size: 14px; line-height: 1.55; color: var(--muted); margin: 14px 0 0; }
+  .cap b { color: var(--ink-2); font-weight: 600; }
+
+  /* ---------- grids ---------- */
+  .grid { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 3px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); margin-top: 26px; }
+  .cell { background: var(--surface); padding: 22px 20px; }
+  .cell p { font-size: 15px; margin: 0; color: var(--muted); line-height: 1.55; }
+  .cell .tag { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); display: block; margin-bottom: 10px; }
+  .cell .big { font-family: var(--mono); font-size: 30px; font-weight: 700; letter-spacing: -.03em; color: var(--ink); display: block; margin-bottom: 8px; }
+
+  /* ---------- command list ---------- */
+  .cmds { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 3px; margin-top: 26px; }
+  .cmd { background: var(--surface); padding: 15px 20px; display: grid; grid-template-columns: minmax(230px, max-content) 1fr; gap: 8px 26px; align-items: baseline; }
+  .cmd code { font-family: var(--mono); font-size: 13.5px; color: var(--ink); white-space: nowrap; }
+  .cmd code .dol { color: var(--accent); }
+  .cmd span { font-size: 14.5px; color: var(--muted); }
+  @media (max-width: 620px) { .cmd { grid-template-columns: 1fr; } }
+
+  /* ---------- limits ---------- */
+  .limits { border: 1px solid var(--line-2); border-radius: 3px; background: var(--surface-2); padding: 26px 26px 12px; margin-top: 26px; }
+  .limits ul { margin: 0; padding-left: 20px; }
+  .limits li { margin-bottom: 14px; color: var(--ink-2); font-size: 15.5px; line-height: 1.6; }
+  .limits li b { color: var(--ink); font-weight: 650; }
+  .limits li code { font-family: var(--mono); font-size: 13px; color: var(--accent-ink); background: var(--accent-bg); padding: 1px 5px; border-radius: 2px; }
+
+  /* ---------- compare (two cells) ---------- */
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 3px; margin-top: 26px; }
+  @media (max-width: 620px) { .compare { grid-template-columns: 1fr; } }
+  .compare > div { background: var(--surface); padding: 24px 22px; }
+  .compare .who { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+  .compare .who.acc { color: var(--accent); }
+  .compare p { font-size: 15px; margin: 0; color: var(--ink-2); line-height: 1.6; }
+
+  /* ---------- footer ---------- */
+  footer { padding: 34px 0 60px; font-family: var(--mono); font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 12px 28px; align-items: center; }
+  footer a { color: var(--muted); text-decoration: none; }
+  footer a:hover { color: var(--ink); }
+  footer .sp { margin-left: auto; }
+
+  @media (prefers-reduced-motion: no-preference) { a, .btn, .ttoggle { transition: color .15s ease, border-color .15s ease, filter .15s ease; } }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="wrap">
+    <a class="brand" href="#top"><span class="mk"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 5.5v6" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round"/><path d="M8 8.2a5 5 0 1 0 8 0" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round"/></svg></span>breakerbox</a>
+    <nav>
+      <a class="hideable" href="#catches">What it catches</a>
+      <a class="hideable" href="#cost">Cost model</a>
+      <a class="hideable" href="#install">Install</a>
+      <a href="https://github.com/ShopDevX/breakerbox" target="_blank" rel="noopener">GitHub</a>
+      <button class="ttoggle" id="tt" aria-label="Toggle color theme">◐ Theme</button>
+    </nav>
+  </div>
+</div>
+
+<div class="wrap" id="top">
+
+  <!-- ============ MASTHEAD ============ -->
+  <header class="mast">
+    <p class="eyebrow"><span>Open source</span><span>MIT</span><span>ShopDevX</span><span>v0.1.0</span><span>Zero dependencies</span></p>
+    <h1>breakerbox</h1>
+    <p class="tagline">a spend limit for what your AI agent does outside the chat</p>
+    <p class="lede">
+      AI agents can now run real commands on real cloud accounts. breakerbox reads every command
+      <em>before</em> it runs, works out what it will cost, and stops it if that breaks a limit you set.
+      No proxy, no daemon, no credentials, no account.
+    </p>
+    <div class="actions">
+      <div class="install"><span class="dol">$</span><code>npm i -g breakerbox</code><button id="cp" data-cmd="npm i -g breakerbox">copy</button></div>
+      <a class="btn primary" href="#install">Install &amp; set up</a>
+      <a class="btn" href="https://github.com/ShopDevX/breakerbox" target="_blank" rel="noopener">GitHub ★</a>
+    </div>
+  </header>
+
+  <!-- ============ THE PROOF ============ -->
+  <section id="proof">
+    <h2>What it does</h2>
+    <h3>One command. Priced, judged, and stopped before it runs.</h3>
+    <div class="col">
+      <p>
+        Give an agent a terminal and you give it your cloud account. Most of the time that's what you
+        want. The trouble starts when it loops — and every runaway command runs in under a second.
+      </p>
+    </div>
+    <div class="term" aria-label="terminal output of breakerbox check on an eight-GPU EC2 launch">
+<pre><span class="c-muted">$</span> breakerbox check <span class="c-acc">"aws ec2 run-instances --instance-type p4d.24xlarge --count 8"</span>
+
+<span class="c-bad">DENY</span>  estimated <span class="c-bad">$6292.34</span>
+
+<span class="c-muted">Billable actions</span>
+  EC2 p4d.24xlarge x8  <span class="c-bad">$6292.34</span>
+  <span class="c-muted">aws.ec2.run-instances · $32.7726/hr · qty 8 · high confidence</span>
+
+<span class="c-muted">Why</span>
+  <span class="c-muted">-</span> Single action estimated at $6292.34, over the per-action cap of $20.00.
+  <span class="c-muted">-</span> Session spend would reach $6292.34, over the session cap of $50.00.</pre>
+    </div>
+    <p class="cap"><b>Nothing was billed.</b> The verdict is computed in Claude Code's <span class="ic">PreToolUse</span> hook — before the command reaches your account. Median overhead: <b class="num">~48ms</b>.</p>
+  </section>
+
+  <!-- ============ THE PROBLEM ============ -->
+  <section id="problem">
+    <h2>The problem</h2>
+    <h3>Your AI bill is metered. Your cloud bill is not.</h3>
+    <div class="col">
+      <p>
+        In the best-known case, an operator woke up to roughly <strong class="num">$6,500</strong> of
+        cloud charges from an agent that spun up machines by itself overnight. Here's the part people
+        miss: <strong>none of that money was spent on AI.</strong> It was spent on servers.
+      </p>
+      <p>
+        Tools that watch your AI spending never saw a thing, because not one of those commands was an
+        AI request. LLM gateways cap <strong>tokens</strong>. Cloud budgets are <strong>reactive</strong> —
+        they tell you hours later, once the money is gone. Nothing was watching the gap in between:
+        the shell command, the cloud SDK call, the <span class="ic">terraform apply</span>.
+      </p>
+    </div>
+    <p class="pull">A fuse box doesn't stop you using electricity. It cuts the power when something draws far more than it should. <em>breakerbox does that for money.</em></p>
+  </section>
+
+  <!-- ============ WHAT IT CATCHES ============ -->
+  <section id="catches">
+    <h2>What it catches</h2>
+    <h3>Runaways, loops, drift, and opaque blast radius.</h3>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Shape</th><th>Example</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td class="what">Oversized resource</td><td><code>aws ec2 run-instances --instance-type p4d.24xlarge --count 8</code></td><td><span class="pill bad">deny</span> — $6,292 &gt; per-action cap</td></tr>
+          <tr><td class="what">Runaway loop</td><td><code>while true; do aws ec2 run-instances …; done</code></td><td><span class="pill bad">deny</span> — billable action, unbounded loop</td></tr>
+          <tr><td class="what">Accumulated drift</td><td>30 small launches across one session</td><td><span class="pill bad">deny</span> — once the session cap is reached</td></tr>
+          <tr><td class="what">Burst velocity</td><td>12 billable actions in 60s</td><td><span class="pill bad">deny</span> — that's a loop, not deliberate work</td></tr>
+          <tr><td class="what">Opaque blast radius</td><td><code>terraform apply -auto-approve</code></td><td><span class="pill warn">ask</span> — cost lives in files, not the command</td></tr>
+          <tr><td class="what">Unattended, opaque</td><td>same, in <code>bypassPermissions</code> mode</td><td><span class="pill bad">deny</span> — an "ask" nobody can answer isn't a guardrail</td></tr>
+          <tr><td class="what">Hidden in substitution</td><td><code>ID=$(aws ec2 run-instances …)</code></td><td><span class="pill bad">deny</span> — substitutions are parsed too</td></tr>
+          <tr><td class="what">Ordinary work</td><td><code>npm test &amp;&amp; git commit -am wip</code></td><td><span class="pill ok">allow</span> — silently</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="cap">Covered today: <b>AWS</b> (EC2, RDS, EKS, SageMaker, Redshift, ElastiCache, OpenSearch, MSK, CloudFormation, ASG, NAT/ALB/TGW, IAM/Organizations), <b>GCP</b> (Compute, GKE, Cloud SQL, Dataproc, Cloud Run), <b>Azure</b> (VM, VMSS, AKS, managed DB, ARM/Bicep), <b>IaC</b> (Terraform, OpenTofu, Pulumi, CDK, SAM, Serverless, Helm), plus metered HTTP APIs and rented-GPU CLIs.</p>
+  </section>
+
+  <!-- ============ COST MODEL ============ -->
+  <section id="cost">
+    <h2>How the cost model works</h2>
+    <h3>It charges tomorrow's bill against today's command.</h3>
+    <div class="col">
+      <p>
+        <strong>Launching an EC2 instance costs $0 at the moment you launch it</strong> — the bill
+        arrives over the following hours. A guardrail that only counted immediate cost would never fire
+        on the exact command that caused the incident. So breakerbox projects the hourly rate over a
+        <strong>horizon</strong> (default 24h) and charges that against your cap up front:
+      </p>
+    </div>
+    <div class="term">
+<pre><span class="c-acc">charged</span> = (oneTime + hourly × horizonHours) × quantity × loopIterations</pre>
+    </div>
+    <div class="grid">
+      <div class="cell"><span class="tag">Pessimistic by default</span><p>Unknown instance types resolve to a deliberately high rate and report low confidence. A guardrail that guesses low is worse than none. GPU families are detected by name and default higher still.</p></div>
+      <div class="cell"><span class="tag">No invented numbers</span><p>For <span class="ic">terraform apply</span> and CloudFormation stacks, the cost lives in files breakerbox isn't reading. It reports <span class="ic">unknownBlastRadius</span> and escalates instead of pretending to price it.</p></div>
+      <div class="cell"><span class="tag">Decide on Pre, charge on Post</span><p>A pending intent is written before the tool runs and promoted to a charge only after it does. A command you denied — or cancelled at the prompt — never eats your cap.</p></div>
+    </div>
+  </section>
+
+  <!-- ============ COMPLEMENTARY ============ -->
+  <section id="fit">
+    <h2>Where it fits</h2>
+    <h3>Not a LiteLLM competitor. Run both.</h3>
+    <div class="compare">
+      <div>
+        <p class="who">LLM gateways — LiteLLM, Portkey, Bifrost</p>
+        <p>Cap what your agent spends on <strong>tokens</strong>: session budgets, iteration caps, alert → throttle → kill on model spend. They do it well.</p>
+      </div>
+      <div>
+        <p class="who acc">breakerbox</p>
+        <p>Caps what your agent spends on <strong>everything else</strong>: the cloud SDK call, the shell command, the <span class="ic">terraform apply</span>. The layer nothing else was watching.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ INSTALL ============ -->
+  <section id="install">
+    <h2>Install</h2>
+    <h3>Two commands. Then restart Claude Code.</h3>
+    <div class="col">
+      <p>
+        <span class="ic">init</span> writes <span class="ic">breakerbox.config.json</span>, creates
+        <span class="ic">.breakerbox/</span>, and registers two hooks in
+        <span class="ic">.claude/settings.json</span>. That's the whole setup — no proxy, no daemon,
+        no credentials.
+      </p>
+    </div>
+    <div class="cmds">
+      <div class="cmd"><code><span class="dol">$</span> npm i -g breakerbox</code><span>Zero runtime dependencies, no build step.</span></div>
+      <div class="cmd"><code><span class="dol">$</span> breakerbox init</code><span>Writes config, ledger dir, and the two Claude Code hooks.</span></div>
+      <div class="cmd"><code><span class="dol">$</span> breakerbox doctor</code><span>Feeds a synthetic 8×p4d.24xlarge launch through the real hook and asserts it comes back denied.</span></div>
+      <div class="cmd"><code><span class="dol">$</span> breakerbox check "&lt;cmd&gt;"</code><span>Dry-run the policy engine and explain the verdict.</span></div>
+      <div class="cmd"><code><span class="dol">$</span> breakerbox status</code><span>Spend against every cap, with meters.</span></div>
+    </div>
+    <p class="cap"><b>doctor</b> doesn't just check that files exist — it tests the chain, not the file listing. Node <span class="num">≥ 18.17</span>. <b class="num">67</b> tests, 0 failures.</p>
+  </section>
+
+  <!-- ============ HONESTY ============ -->
+  <section id="limits">
+    <h2>What this cannot see</h2>
+    <h3>A guardrail that oversells itself is worse than none.</h3>
+    <div class="col"><p>Because you stop watching. So, plainly:</p></div>
+    <div class="limits">
+      <ul>
+        <li><b>It is a spend guardrail, not a security sandbox.</b> It reads the command line. <code>eval "$(… | base64 -d)"</code>, a cost-incurring action inside a script it invokes, or an SDK call inside <code>python deploy.py</code> are invisible to it. It defends against <b>runaway agents</b>, not an adversary deliberately evading it.</li>
+        <li><b>Prices are approximate list prices</b> (stamped <code>2026-08</code>). No region adjustment, reserved instances, savings plans, spot, or data transfer. They exist to make caps trip at roughly the right time — not to reconcile your invoice.</li>
+        <li><b>Only <code>Bash</code> is inspected today.</b> MCP tool calls and other tools pass through. This is the biggest known coverage gap, and it's on the roadmap.</li>
+        <li><b><code>failMode</code> defaults to <code>open</code>.</b> If breakerbox itself errors, the command proceeds and the error is logged. A bug in a safety tool must not brick your agent. Set <code>"failMode": "closed"</code> to invert that.</li>
+        <li><b>Allow is expressed as silence.</b> breakerbox never emits an explicit <code>allow</code>, because that would bypass Claude Code's own permission checks. It only ever speaks up to <b>deny</b> or <b>ask</b>.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <span>MIT © ShopDevX</span>
+    <a href="https://github.com/ShopDevX/breakerbox" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://www.npmjs.com/package/breakerbox" target="_blank" rel="noopener">npm</a>
+    <a href="./how-it-works.html">How it works →</a>
+    <span class="sp">a spend limit for what your AI agent does outside the chat</span>
+  </footer>
+
+</div>
+
+<script>
+  // theme toggle — respects system default until the user overrides
+  (function () {
+    var root = document.documentElement, btn = document.getElementById('tt');
+    function sysDark(){ return matchMedia('(prefers-color-scheme: dark)').matches; }
+    function apply(t){ if(t) root.setAttribute('data-theme', t); else root.removeAttribute('data-theme'); }
+    try { var saved = localStorage.getItem('bb-theme'); if (saved) apply(saved); } catch (e) {}
+    btn && btn.addEventListener('click', function () {
+      var cur = root.getAttribute('data-theme') || (sysDark() ? 'dark' : 'light');
+      var next = cur === 'dark' ? 'light' : 'dark';
+      apply(next);
+      try { localStorage.setItem('bb-theme', next); } catch (e) {}
+    });
+  })();
+  // copy install command
+  (function () {
+    document.querySelectorAll('[data-cmd]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        navigator.clipboard && navigator.clipboard.writeText(b.getAttribute('data-cmd'));
+        var t = b.textContent; b.textContent = 'copied'; setTimeout(function(){ b.textContent = t; }, 1400);
+      });
+    });
+  })();
+</script>
+</body>
+</html>

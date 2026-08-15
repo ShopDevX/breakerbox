@@ -1,0 +1,883 @@
+<title>How Breakerbox Works</title>
+
+<style>
+  /* ---------- tokens: light is the base state ---------- */
+  :root {
+    --ground:      #EDEFF1;
+    --surface:     #FFFFFF;
+    --surface-2:   #F4F6F7;
+    --plate:       #E5E9EC;
+    --ink:         #12171C;
+    --ink-2:       #3F4A54;
+    --muted:       #6B7783;
+    --line:        #D2D9DE;
+    --line-2:      #B4BFC7;
+    --accent:      #A8471C;
+    --accent-ink:  #8E3C17;
+    --accent-bg:   #F5E6DE;
+    --ok:          #2C6A4E;
+    --ok-bg:       #E2EEE8;
+    --warn:        #8A5E10;
+    --warn-bg:     #F5EDDA;
+    --bad:         #9E2B21;
+    --bad-bg:      #F6E3E1;
+    --term-bg:     #171C21;
+    --term-ink:    #D8DEE4;
+    --term-muted:  #7C8994;
+
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", "Roboto Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+    --measure: 68ch;
+    --wide: 1080px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:     #0F1418;
+      --surface:    #161C22;
+      --surface-2:  #1C232A;
+      --plate:      #12181D;
+      --ink:        #E3E8ED;
+      --ink-2:      #B6C1CB;
+      --muted:      #8794A0;
+      --line:       #28313A;
+      --line-2:     #3A454F;
+      --accent:     #E5834F;
+      --accent-ink: #F0A075;
+      --accent-bg:  #2E2019;
+      --ok:         #74C29A;
+      --ok-bg:      #16261F;
+      --warn:       #DCB365;
+      --warn-bg:    #2A2314;
+      --bad:        #E8776B;
+      --bad-bg:     #2C1A18;
+      --term-bg:    #0B0F13;
+      --term-ink:   #D8DEE4;
+      --term-muted: #6F7C87;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:     #0F1418;
+    --surface:    #161C22;
+    --surface-2:  #1C232A;
+    --plate:      #12181D;
+    --ink:        #E3E8ED;
+    --ink-2:      #B6C1CB;
+    --muted:      #8794A0;
+    --line:       #28313A;
+    --line-2:     #3A454F;
+    --accent:     #E5834F;
+    --accent-ink: #F0A075;
+    --accent-bg:  #2E2019;
+    --ok:         #74C29A;
+    --ok-bg:      #16261F;
+    --warn:       #DCB365;
+    --warn-bg:    #2A2314;
+    --bad:        #E8776B;
+    --bad-bg:     #2C1A18;
+    --term-bg:    #0B0F13;
+    --term-ink:   #D8DEE4;
+    --term-muted: #6F7C87;
+  }
+
+  /* ---------- base ---------- */
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 17px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+    padding: 0 20px 96px;
+  }
+
+  .wrap { max-width: var(--wide); margin: 0 auto; }
+  .col  { max-width: var(--measure); }
+
+  p { margin: 0 0 1.1em; color: var(--ink-2); }
+  strong { color: var(--ink); font-weight: 650; }
+  a { color: var(--accent); text-underline-offset: 3px; }
+  a:focus-visible, .cmd:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  /* ---------- masthead ---------- */
+  .mast {
+    border-bottom: 1px solid var(--line);
+    padding: 56px 0 40px;
+    margin-bottom: 56px;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 22px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+  .eyebrow span:not(:last-child)::after {
+    content: "·";
+    margin-left: 10px;
+    color: var(--line-2);
+  }
+  h1 {
+    font-family: var(--mono);
+    font-size: clamp(38px, 7vw, 62px);
+    font-weight: 700;
+    letter-spacing: -.03em;
+    line-height: 1;
+    margin: 0 0 8px;
+    color: var(--ink);
+  }
+  .tagline {
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--accent);
+    letter-spacing: -.01em;
+    margin: 0 0 26px;
+  }
+  .lede {
+    font-size: clamp(19px, 2.4vw, 22px);
+    line-height: 1.5;
+    color: var(--ink);
+    max-width: 60ch;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  /* ---------- sections ---------- */
+  section { margin-bottom: 64px; }
+  h2 {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 650;
+    margin: 0 0 6px;
+  }
+  h3 {
+    font-size: clamp(24px, 3.4vw, 31px);
+    line-height: 1.2;
+    letter-spacing: -.02em;
+    font-weight: 650;
+    margin: 0 0 20px;
+    color: var(--ink);
+    text-wrap: balance;
+    max-width: 24ch;
+  }
+  h4 {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 650;
+    margin: 0 0 8px;
+    color: var(--ink);
+    letter-spacing: -.01em;
+  }
+
+  /* ---------- pull statement ---------- */
+  .pull {
+    font-family: var(--mono);
+    font-size: clamp(19px, 3vw, 26px);
+    line-height: 1.35;
+    letter-spacing: -.02em;
+    color: var(--ink);
+    border-top: 2px solid var(--accent);
+    padding-top: 20px;
+    margin: 40px 0;
+    max-width: 30ch;
+  }
+  .pull em { font-style: normal; color: var(--accent); }
+
+  /* ---------- figures ---------- */
+  figure {
+    margin: 36px 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+  }
+  .plate { overflow-x: auto; padding: 28px 24px 8px; }
+  figure svg { display: block; max-width: 100%; height: auto; min-width: 620px; margin: 0 auto; color: var(--ink); }
+
+  /* Diagram colors come from the token set so both themes resolve as a set.
+     Presentation attributes on the SVG would be frozen to one theme. */
+  .s-mute { fill: var(--muted); }
+  .s-acc  { fill: var(--accent); }
+  .s-ok   { fill: var(--ok); }
+  .s-warn { fill: var(--warn); }
+  .s-bad  { fill: var(--bad); }
+  .k-mute { stroke: var(--muted); }
+  .k-acc  { stroke: var(--accent); }
+  .k-ok   { stroke: var(--ok); }
+  .k-warn { stroke: var(--warn); }
+  .k-bad  { stroke: var(--bad); }
+  figcaption {
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--muted);
+    border-top: 1px solid var(--line);
+    padding: 14px 24px;
+    margin-top: 20px;
+  }
+  figcaption b { color: var(--ink-2); font-weight: 600; }
+
+  /* ---------- verdict pills ---------- */
+  .pill {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 2px;
+    white-space: nowrap;
+    display: inline-block;
+  }
+  .pill.ok   { color: var(--ok);   background: var(--ok-bg); }
+  .pill.warn { color: var(--warn); background: var(--warn-bg); }
+  .pill.bad  { color: var(--bad);  background: var(--bad-bg); }
+
+  /* ---------- table ---------- */
+  .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 3px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 660px; font-size: 15px; }
+  th {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    text-align: left;
+    padding: 13px 18px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface-2);
+    white-space: nowrap;
+  }
+  td {
+    padding: 15px 18px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+    color: var(--ink-2);
+  }
+  tr:last-child td { border-bottom: 0; }
+  td.what { color: var(--ink); font-weight: 550; }
+  td code {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--accent-ink);
+    background: var(--accent-bg);
+    padding: 2px 6px;
+    border-radius: 2px;
+    display: inline-block;
+    line-height: 1.5;
+  }
+
+  /* ---------- terminal ---------- */
+  .term {
+    background: var(--term-bg);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 20px 22px;
+    overflow-x: auto;
+    margin: 28px 0;
+  }
+  .term pre {
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--term-ink);
+    margin: 0;
+  }
+  .term .c-muted { color: var(--term-muted); }
+  .term .c-bad   { color: #E8776B; font-weight: 650; }
+  .term .c-ok    { color: #74C29A; font-weight: 650; }
+  .term .c-acc   { color: #E5834F; }
+
+  /* ---------- grids ---------- */
+  .grid {
+    display: grid;
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    margin-top: 28px;
+  }
+  .cell { background: var(--surface); padding: 22px 20px; }
+  .cell p { font-size: 15px; margin: 0; color: var(--muted); line-height: 1.55; }
+  .cell .tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 10px;
+  }
+
+  /* ---------- command list ---------- */
+  .cmds { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 3px; margin-top: 28px; }
+  .cmd {
+    background: var(--surface);
+    padding: 15px 20px;
+    display: grid;
+    grid-template-columns: minmax(210px, max-content) 1fr;
+    gap: 8px 26px;
+    align-items: baseline;
+  }
+  .cmd code { font-family: var(--mono); font-size: 13.5px; color: var(--ink); white-space: nowrap; }
+  .cmd span { font-size: 14.5px; color: var(--muted); }
+  @media (max-width: 620px) { .cmd { grid-template-columns: 1fr; } }
+
+  /* ---------- limits ---------- */
+  .limits { border: 1px solid var(--line-2); border-radius: 3px; background: var(--surface-2); padding: 26px 26px 10px; margin-top: 28px; }
+  .limits ul { margin: 0; padding-left: 20px; }
+  .limits li { margin-bottom: 14px; color: var(--ink-2); font-size: 15.5px; line-height: 1.6; }
+  .limits li b { color: var(--ink); font-weight: 650; }
+
+  /* ---------- footer ---------- */
+  footer {
+    border-top: 1px solid var(--line);
+    padding-top: 32px;
+    margin-top: 72px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--muted);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 28px;
+  }
+
+  .num { font-variant-numeric: tabular-nums; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    a { transition: color .15s ease; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <p class="eyebrow"><span>Open source</span><span>MIT</span><span>ShopDevX</span></p>
+    <h1>breakerbox</h1>
+    <p class="tagline">a spend limit for what your AI agent does outside the chat</p>
+    <p class="lede">
+      AI agents can now run real commands on real accounts. breakerbox reads every command
+      <em>before</em> it runs, works out what it will cost, and stops it if that breaks a limit you set.
+    </p>
+  </header>
+
+  <!-- ============ THE PROBLEM ============ -->
+  <section>
+    <h2>The problem</h2>
+    <div class="col">
+      <h3>Your AI bill is metered. Your cloud bill is not.</h3>
+      <p>
+        When you give an agent a terminal, you give it your cloud account. Most of the time that's
+        exactly what you want — it can deploy, test, and clean up on its own.
+      </p>
+      <p>
+        The trouble starts when it loops. An agent that misreads a task can start servers, then start
+        more, then start more again — and every one of those is a command that runs in under a second.
+        In the best-known case, an operator woke up to roughly <strong class="num">$6,500</strong> of
+        cloud charges from an agent that spun up machines by itself overnight.
+      </p>
+      <p>
+        Here's the part people miss: <strong>none of that money was spent on AI.</strong> It was spent
+        on servers. Tools that watch your AI spending never saw a thing, because not one of those
+        commands was an AI request.
+      </p>
+    </div>
+
+    <p class="pull">A fuse box doesn't stop you using electricity. It cuts the power when something draws far more than it should. <em>breakerbox does that for money.</em></p>
+
+    <figure>
+      <div class="plate">
+        <svg viewBox="0 0 960 280" role="img" aria-label="Without breakerbox, an agent's request to start eight GPU servers reaches the cloud account directly and bills 6292 dollars. With breakerbox, the same request is stopped at the guardrail and nothing is billed." font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace">
+          <defs>
+            <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+            </marker>
+            <marker id="f1-arrow-mute" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" class="s-mute"/>
+            </marker>
+          </defs>
+
+          <!-- panel labels -->
+          <text x="40" y="28" font-size="11" letter-spacing="1.6" class="s-mute">WITHOUT BREAKERBOX</text>
+          <text x="520" y="28" font-size="11" letter-spacing="1.6" class="s-acc">WITH BREAKERBOX</text>
+
+          <line x1="490" y1="14" x2="490" y2="266" stroke="currentColor" stroke-opacity=".18" stroke-dasharray="3 5"/>
+
+          <!-- LEFT -->
+          <rect x="40" y="90" width="130" height="60" rx="2" fill="none" stroke="currentColor" stroke-opacity=".38"/>
+          <text x="105" y="126" font-size="13" text-anchor="middle" fill="currentColor">AI agent</text>
+
+          <line x1="172" y1="120" x2="322" y2="120" stroke="currentColor" stroke-opacity=".55" marker-end="url(#f1-arrow)" color="currentColor"/>
+          <text x="247" y="108" font-size="11" text-anchor="middle" class="s-mute">starts 8 GPU servers</text>
+
+          <rect x="330" y="90" width="130" height="60" rx="2" fill="none" stroke="currentColor" stroke-opacity=".38"/>
+          <text x="395" y="116" font-size="13" text-anchor="middle" fill="currentColor">Your cloud</text>
+          <text x="395" y="134" font-size="13" text-anchor="middle" fill="currentColor">account</text>
+
+          <text x="250" y="212" font-size="26" font-weight="700" text-anchor="middle" class="s-bad">$6,292.34</text>
+          <text x="250" y="238" font-size="12" text-anchor="middle" class="s-mute">billed before anyone noticed</text>
+
+          <!-- RIGHT -->
+          <rect x="520" y="90" width="108" height="60" rx="2" fill="none" stroke="currentColor" stroke-opacity=".38"/>
+          <text x="574" y="126" font-size="13" text-anchor="middle" fill="currentColor">AI agent</text>
+
+          <line x1="630" y1="120" x2="666" y2="120" stroke="currentColor" stroke-opacity=".55" marker-end="url(#f1-arrow)"/>
+
+          <rect x="672" y="82" width="116" height="76" rx="2" fill="none" class="k-acc" stroke-width="2"/>
+          <text x="730" y="114" font-size="13" font-weight="700" text-anchor="middle" class="s-acc">breakerbox</text>
+          <text x="730" y="134" font-size="10.5" text-anchor="middle" class="s-mute">prices it first</text>
+
+          <line x1="792" y1="120" x2="824" y2="120" class="k-mute" stroke-opacity=".55" stroke-dasharray="4 4" marker-end="url(#f1-arrow-mute)"/>
+          <line x1="801" y1="113" x2="815" y2="127" class="k-bad" stroke-width="2"/>
+          <line x1="815" y1="113" x2="801" y2="127" class="k-bad" stroke-width="2"/>
+
+          <rect x="830" y="90" width="108" height="60" rx="2" fill="none" stroke="currentColor" stroke-opacity=".22"/>
+          <text x="884" y="116" font-size="13" text-anchor="middle" fill="currentColor" fill-opacity=".5">Your cloud</text>
+          <text x="884" y="134" font-size="13" text-anchor="middle" fill="currentColor" fill-opacity=".5">account</text>
+
+          <text x="730" y="212" font-size="26" font-weight="700" text-anchor="middle" class="s-ok">$0.00</text>
+          <text x="730" y="238" font-size="12" text-anchor="middle" class="s-mute">stopped before it ran</text>
+        </svg>
+      </div>
+      <figcaption>
+        <b>The only difference is one box.</b> breakerbox adds a checkpoint between the agent and
+        your account. The agent still works exactly as before — until a command would cost more than
+        you allowed.
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ WHAT IT LOOKS LIKE ============ -->
+  <section>
+    <h2>What you actually see</h2>
+    <div class="col">
+      <h3>It explains itself, in dollars</h3>
+      <p>
+        Nothing happens silently. When breakerbox stops something, it says what the command would have
+        cost, which limit it broke, and what the agent should do instead.
+      </p>
+    </div>
+
+    <div class="term">
+<pre><span class="c-muted">$</span> breakerbox check "aws ec2 run-instances --instance-type p4d.24xlarge --count 8"
+
+<span class="c-bad">DENY</span>  <span class="c-muted">estimated $6292.34</span>
+
+<span class="c-acc">Billable actions</span>
+  EC2 p4d.24xlarge x8  $6292.34
+  <span class="c-muted">aws.ec2.run-instances · $32.7726/hr · qty 8 · high confidence</span>
+
+<span class="c-acc">Why</span>
+  - Single action estimated at $6292.34, over the per-action cap of $20.00.
+  - Session spend would reach $6292.34, over the session cap of $50.00.
+  - Today's spend would reach $6292.34, over the daily cap of $200.00.</pre>
+    </div>
+  </section>
+
+  <!-- ============ WHAT IT CATCHES ============ -->
+  <section>
+    <h2>What it catches</h2>
+    <div class="col">
+      <h3>Four ways an agent burns money, and what happens to each</h3>
+      <p>
+        Runaway spend rarely looks like one huge command. More often it's a small command repeated
+        until it isn't small any more. breakerbox watches for all four shapes.
+      </p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>What the agent does</th>
+            <th>Example</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="what">Asks for something far too big</td>
+            <td><code>aws ec2 run-instances --instance-type p4d.24xlarge --count 8</code></td>
+            <td><span class="pill bad">Deny</span><br><span style="font-size:13.5px;color:var(--muted)">$6,292 is over the per-action limit</span></td>
+          </tr>
+          <tr>
+            <td class="what">Gets stuck in a loop</td>
+            <td><code>while true; do aws ec2 run-instances ...; done</code></td>
+            <td><span class="pill bad">Deny</span><br><span style="font-size:13.5px;color:var(--muted)">a paid action with no end condition</span></td>
+          </tr>
+          <tr>
+            <td class="what">Drifts — many small charges</td>
+            <td>30 modest servers over one working session</td>
+            <td><span class="pill bad">Deny</span><br><span style="font-size:13.5px;color:var(--muted)">once the session total is reached</span></td>
+          </tr>
+          <tr>
+            <td class="what">Fires too fast to be deliberate</td>
+            <td>12 paid commands inside 60 seconds</td>
+            <td><span class="pill bad">Deny</span><br><span style="font-size:13.5px;color:var(--muted)">that's a loop, not a person working</span></td>
+          </tr>
+          <tr>
+            <td class="what">Runs something unmeasurable</td>
+            <td><code>terraform apply -auto-approve</code></td>
+            <td><span class="pill warn">Ask</span><br><span style="font-size:13.5px;color:var(--muted)">the cost lives in files, not the command</span></td>
+          </tr>
+          <tr>
+            <td class="what">Same, with nobody watching</td>
+            <td>the above, in auto-approve mode</td>
+            <td><span class="pill bad">Deny</span><br><span style="font-size:13.5px;color:var(--muted)">a question nobody can answer isn't a guard</span></td>
+          </tr>
+          <tr>
+            <td class="what">Ordinary work</td>
+            <td><code>npm test &amp;&amp; git commit -am wip</code></td>
+            <td><span class="pill ok">Allow</span><br><span style="font-size:13.5px;color:var(--muted)">silently — you never notice it's there</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ ARCHITECTURE ============ -->
+  <section>
+    <h2>How it's put together</h2>
+    <div class="col">
+      <h3>Four small parts, sitting in one gap</h3>
+      <p>
+        Claude Code has a built-in checkpoint called a <em>hook</em> — a place where an outside program
+        gets to inspect a command and veto it before it runs. breakerbox lives in that gap. That's why
+        there's no proxy to run, no service to sign up for, and no credentials to hand over.
+      </p>
+    </div>
+
+    <figure>
+      <div class="plate">
+        <svg viewBox="0 0 940 500" role="img" aria-label="Claude Code passes each command to breakerbox, which runs it through a parser, a cost estimator, a policy check against your caps, and a ledger of past spend, then returns one of three answers: allow, ask, or deny." font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace">
+          <defs>
+            <marker id="f2-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+
+          <!-- agent -->
+          <rect x="320" y="20" width="300" height="56" rx="2" fill="none" stroke="currentColor" stroke-opacity=".4"/>
+          <text x="470" y="44" font-size="14" font-weight="650" text-anchor="middle" fill="currentColor">Claude Code</text>
+          <text x="470" y="63" font-size="11" text-anchor="middle" class="s-mute">your AI agent</text>
+
+          <line x1="470" y1="78" x2="470" y2="114" stroke="currentColor" stroke-opacity=".5" marker-end="url(#f2-arrow)"/>
+          <text x="486" y="100" font-size="11" class="s-mute">the command it wants to run</text>
+
+          <!-- breakerbox panel -->
+          <rect x="50" y="120" width="840" height="250" rx="3" fill="none" class="k-acc" stroke-opacity=".55" stroke-dasharray="5 4"/>
+          <text x="70" y="148" font-size="11" letter-spacing="1.6" class="s-acc">BREAKERBOX</text>
+
+          <!-- stage 1 -->
+          <rect x="70" y="180" width="170" height="94" rx="2" fill="none" stroke="currentColor" stroke-opacity=".32"/>
+          <text x="155" y="212" font-size="13.5" font-weight="650" text-anchor="middle" fill="currentColor">Parser</text>
+          <text x="155" y="236" font-size="11" text-anchor="middle" class="s-mute">reads the command,</text>
+          <text x="155" y="252" font-size="11" text-anchor="middle" class="s-mute">counts loops</text>
+
+          <line x1="244" y1="227" x2="274" y2="227" stroke="currentColor" stroke-opacity=".5" marker-end="url(#f2-arrow)"/>
+
+          <!-- stage 2 -->
+          <rect x="280" y="180" width="170" height="94" rx="2" fill="none" stroke="currentColor" stroke-opacity=".32"/>
+          <text x="365" y="212" font-size="13.5" font-weight="650" text-anchor="middle" fill="currentColor">Estimator</text>
+          <text x="365" y="236" font-size="11" text-anchor="middle" class="s-mute">prices what it</text>
+          <text x="365" y="252" font-size="11" text-anchor="middle" class="s-mute">will cost</text>
+
+          <line x1="454" y1="227" x2="484" y2="227" stroke="currentColor" stroke-opacity=".5" marker-end="url(#f2-arrow)"/>
+
+          <!-- stage 3 -->
+          <rect x="490" y="180" width="170" height="94" rx="2" fill="none" class="k-acc" stroke-opacity=".7"/>
+          <text x="575" y="212" font-size="13.5" font-weight="650" text-anchor="middle" class="s-acc">Policy</text>
+          <text x="575" y="236" font-size="11" text-anchor="middle" class="s-mute">compares it to</text>
+          <text x="575" y="252" font-size="11" text-anchor="middle" class="s-mute">your limits</text>
+
+          <line x1="700" y1="227" x2="670" y2="227" stroke="currentColor" stroke-opacity=".5" marker-end="url(#f2-arrow)"/>
+
+          <!-- stage 4 -->
+          <rect x="700" y="180" width="170" height="94" rx="2" fill="none" stroke="currentColor" stroke-opacity=".32"/>
+          <text x="785" y="212" font-size="13.5" font-weight="650" text-anchor="middle" fill="currentColor">Ledger</text>
+          <text x="785" y="236" font-size="11" text-anchor="middle" class="s-mute">remembers what</text>
+          <text x="785" y="252" font-size="11" text-anchor="middle" class="s-mute">you already spent</text>
+
+          <text x="785" y="300" font-size="10.5" text-anchor="middle" class="s-mute">a plain file on your disk</text>
+
+          <!-- out -->
+          <line x1="470" y1="370" x2="470" y2="400" stroke="currentColor" stroke-opacity=".5"/>
+          <path d="M 470 400 H 165 V 412" fill="none" stroke="currentColor" stroke-opacity=".5" marker-end="url(#f2-arrow)"/>
+          <path d="M 470 400 V 412" fill="none" stroke="currentColor" stroke-opacity=".5" marker-end="url(#f2-arrow)"/>
+          <path d="M 470 400 H 775 V 412" fill="none" stroke="currentColor" stroke-opacity=".5" marker-end="url(#f2-arrow)"/>
+
+          <!-- outcomes -->
+          <rect x="40" y="418" width="250" height="56" rx="2" fill="none" class="k-ok" stroke-opacity=".7"/>
+          <text x="165" y="443" font-size="13" font-weight="700" letter-spacing="1.2" text-anchor="middle" class="s-ok">ALLOW</text>
+          <text x="165" y="462" font-size="11" text-anchor="middle" class="s-mute">runs as normal, silently</text>
+
+          <rect x="345" y="418" width="250" height="56" rx="2" fill="none" class="k-warn" stroke-opacity=".8"/>
+          <text x="470" y="443" font-size="13" font-weight="700" letter-spacing="1.2" text-anchor="middle" class="s-warn">ASK</text>
+          <text x="470" y="462" font-size="11" text-anchor="middle" class="s-mute">you get the final say</text>
+
+          <rect x="650" y="418" width="250" height="56" rx="2" fill="none" class="k-bad" stroke-opacity=".8"/>
+          <text x="775" y="443" font-size="13" font-weight="700" letter-spacing="1.2" text-anchor="middle" class="s-bad">DENY</text>
+          <text x="775" y="462" font-size="11" text-anchor="middle" class="s-mute">never runs, agent told why</text>
+        </svg>
+      </div>
+      <figcaption>
+        <b>Everything stays on your machine.</b> The ledger is an ordinary file in your project folder.
+        Note the arrow direction between Policy and Ledger — the policy check <i>reads</i> your past
+        spend to decide, which is how a series of small commands eventually adds up to a stop.
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ FLOW ============ -->
+  <section>
+    <h2>The journey of one command</h2>
+    <div class="col">
+      <h3>Decide before it runs. Charge only after it ran.</h3>
+      <p>
+        This split is the most important design decision in the tool, and it's easy to get wrong.
+      </p>
+      <p>
+        A blocked command costs nothing — so it must not count against your budget. If it did, a
+        handful of commands you <em>stopped</em> would use up your limit, and an agent that never spent
+        a cent would find itself locked out. So breakerbox writes down what it's <em>about</em> to
+        spend, and only converts that into a real charge once the command has actually run.
+      </p>
+    </div>
+
+    <figure>
+      <div class="plate">
+        <svg viewBox="0 0 760 580" role="img" aria-label="A command is checked before it runs. If it is within every limit it runs, then the spend is committed to the ledger and the next command is judged against the new total. If it breaks a limit it is blocked and nothing is charged." font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace">
+          <defs>
+            <marker id="f3-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+            </marker>
+            <marker id="f3-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" class="s-bad"/>
+            </marker>
+            <marker id="f3-arrow-ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" class="s-ok"/>
+            </marker>
+          </defs>
+
+          <!-- 1 -->
+          <rect x="280" y="24" width="200" height="48" rx="2" fill="none" stroke="currentColor" stroke-opacity=".38"/>
+          <text x="380" y="53" font-size="12.5" text-anchor="middle" fill="currentColor">Agent writes a command</text>
+          <line x1="380" y1="72" x2="380" y2="98" stroke="currentColor" stroke-opacity=".5" marker-end="url(#f3-arrow)"/>
+
+          <!-- 2 -->
+          <rect x="266" y="100" width="228" height="48" rx="2" fill="none" class="k-acc" stroke-opacity=".75"/>
+          <text x="380" y="129" font-size="12.5" font-weight="650" text-anchor="middle" class="s-acc">breakerbox intercepts it</text>
+          <line x1="380" y1="148" x2="380" y2="174" stroke="currentColor" stroke-opacity=".5" marker-end="url(#f3-arrow)"/>
+
+          <!-- 3 -->
+          <rect x="240" y="176" width="280" height="56" rx="2" fill="none" stroke="currentColor" stroke-opacity=".38"/>
+          <text x="380" y="200" font-size="12.5" text-anchor="middle" fill="currentColor">Work out the cost, then compare</text>
+          <text x="380" y="219" font-size="12.5" text-anchor="middle" fill="currentColor">against everything spent so far</text>
+          <line x1="380" y1="232" x2="380" y2="256" stroke="currentColor" stroke-opacity=".5" marker-end="url(#f3-arrow)"/>
+
+          <!-- decision -->
+          <polygon points="290,258 470,258 500,288 470,318 290,318 260,288" fill="none" stroke="currentColor" stroke-opacity=".55"/>
+          <text x="380" y="293" font-size="12.5" font-weight="650" text-anchor="middle" fill="currentColor">Within every limit?</text>
+
+          <!-- branches -->
+          <path d="M 260 288 H 140 V 352" fill="none" class="k-bad" stroke-opacity=".8" marker-end="url(#f3-arrow-bad)"/>
+          <text x="196" y="278" font-size="11" font-weight="650" text-anchor="middle" class="s-bad">NO</text>
+
+          <path d="M 500 288 H 620 V 352" fill="none" class="k-ok" stroke-opacity=".8" marker-end="url(#f3-arrow-ok)"/>
+          <text x="562" y="278" font-size="11" font-weight="650" text-anchor="middle" class="s-ok">YES</text>
+
+          <!-- deny column -->
+          <rect x="40" y="358" width="200" height="52" rx="2" fill="none" class="k-bad" stroke-opacity=".8"/>
+          <text x="140" y="389" font-size="12.5" font-weight="650" text-anchor="middle" class="s-bad">Blocked, with a reason</text>
+
+          <line x1="140" y1="410" x2="140" y2="436" stroke="currentColor" stroke-opacity=".35" stroke-dasharray="3 4"/>
+
+          <rect x="40" y="438" width="200" height="52" rx="2" fill="none" stroke="currentColor" stroke-opacity=".28" stroke-dasharray="4 4"/>
+          <text x="140" y="462" font-size="11.5" text-anchor="middle" class="s-mute">Nothing charged —</text>
+          <text x="140" y="479" font-size="11.5" text-anchor="middle" class="s-mute">your budget is untouched</text>
+
+          <!-- allow column -->
+          <rect x="520" y="358" width="200" height="48" rx="2" fill="none" stroke="currentColor" stroke-opacity=".38"/>
+          <text x="620" y="387" font-size="12.5" text-anchor="middle" fill="currentColor">The command runs</text>
+          <line x1="620" y1="406" x2="620" y2="432" stroke="currentColor" stroke-opacity=".5" marker-end="url(#f3-arrow)"/>
+
+          <rect x="520" y="434" width="200" height="48" rx="2" fill="none" class="k-acc" stroke-opacity=".75"/>
+          <text x="620" y="463" font-size="12.5" font-weight="650" text-anchor="middle" class="s-acc">breakerbox is told it ran</text>
+          <line x1="620" y1="482" x2="620" y2="508" stroke="currentColor" stroke-opacity=".5" marker-end="url(#f3-arrow)"/>
+
+          <rect x="520" y="510" width="200" height="48" rx="2" fill="none" class="k-ok" stroke-opacity=".8"/>
+          <text x="620" y="539" font-size="12.5" font-weight="650" text-anchor="middle" class="s-ok">Now the spend counts</text>
+
+          <!-- loop back -->
+          <path d="M 720 534 H 742 V 158 H 450 V 170" fill="none" stroke="currentColor" stroke-opacity=".3" stroke-dasharray="4 4" marker-end="url(#f3-arrow)"/>
+          <text x="736" y="144" font-size="10.5" text-anchor="end" class="s-mute">the next command sees the new total</text>
+        </svg>
+      </div>
+      <figcaption>
+        <b>The dashed line closing the loop is what makes limits work over time.</b> Each committed
+        charge raises the running total, so the tenth modest command can be refused even though the
+        first nine were fine.
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ COST MODEL ============ -->
+  <section>
+    <h2>The counterintuitive bit</h2>
+    <div class="col">
+      <h3>Starting a server costs nothing. That's the whole problem.</h3>
+      <p>
+        At the exact moment you start a cloud server, you have been charged <strong>$0</strong>. The
+        bill arrives gradually, over the hours it stays running.
+      </p>
+      <p>
+        So a guardrail that only asked "what does this cost right now?" would wave through the very
+        command that causes the damage. breakerbox instead asks <strong>"what will this cost if it runs
+        for a day?"</strong> — and charges that against your limit immediately.
+      </p>
+    </div>
+
+    <figure>
+      <div class="plate">
+        <svg viewBox="0 0 900 300" role="img" aria-label="A cost-over-time chart. At the moment of launch the cost is zero dollars. It rises steadily and reaches 6292 dollars after 24 hours, which is the amount breakerbox charges against your limit up front." font-family="ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace">
+          <!-- axes -->
+          <line x1="90" y1="56" x2="90" y2="220" stroke="currentColor" stroke-opacity=".3"/>
+          <line x1="90" y1="220" x2="840" y2="220" stroke="currentColor" stroke-opacity=".3"/>
+
+          <!-- accrual -->
+          <polygon points="90,220 830,86 830,220" class="s-acc" fill-opacity=".13"/>
+          <polyline points="90,220 830,86" fill="none" class="k-acc" stroke-width="2"/>
+          <line x1="830" y1="86" x2="830" y2="220" class="k-acc" stroke-opacity=".45" stroke-dasharray="4 4"/>
+
+          <!-- start point -->
+          <circle cx="90" cy="220" r="5" class="s-ok"/>
+          <path d="M 96 224 L 148 256" fill="none" stroke="currentColor" stroke-opacity=".3"/>
+          <text x="154" y="261" font-size="12" class="s-ok" font-weight="650">$0.00 at this exact moment</text>
+          <text x="154" y="279" font-size="11" class="s-mute">what a naive check would see</text>
+
+          <!-- end point -->
+          <circle cx="830" cy="86" r="5" class="s-acc"/>
+          <text x="818" y="66" font-size="16" font-weight="700" text-anchor="end" class="s-acc">$6,292.34</text>
+          <text x="818" y="84" font-size="11" text-anchor="end" class="s-mute">what breakerbox charges up front</text>
+
+          <!-- ticks -->
+          <text x="90" y="242" font-size="11" text-anchor="middle" class="s-mute">launch</text>
+          <text x="275" y="242" font-size="11" text-anchor="middle" class="s-mute">+6h</text>
+          <text x="460" y="242" font-size="11" text-anchor="middle" class="s-mute">+12h</text>
+          <text x="645" y="242" font-size="11" text-anchor="middle" class="s-mute">+18h</text>
+          <text x="830" y="242" font-size="11" text-anchor="middle" class="s-mute">+24h</text>
+
+          <text x="60" y="140" font-size="11" text-anchor="middle" class="s-mute" transform="rotate(-90 60 140)">cost so far</text>
+        </svg>
+      </div>
+      <figcaption>
+        <b>The 24-hour window is adjustable.</b> Shorten it if your agent reliably cleans up after
+        itself; lengthen it if forgotten servers are your actual failure mode.
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ WHO IT'S FOR ============ -->
+  <section>
+    <h2>Who this is for</h2>
+    <div class="col">
+      <h3>Anyone who gave an agent real credentials</h3>
+    </div>
+
+    <div class="grid">
+      <div class="cell">
+        <span class="tag">Solo developers</span>
+        <p>You're running an agent against your own cloud account, and there is nobody else to catch a bad night's work before the invoice does.</p>
+      </div>
+      <div class="cell">
+        <span class="tag">Small teams</span>
+        <p>You have real cloud spend but no finance function watching it. Your first warning today is a billing alert, hours late.</p>
+      </div>
+      <div class="cell">
+        <span class="tag">Auto-approve users</span>
+        <p>You run agents in a mode where they don't stop to ask. This is where breakerbox matters most — it's the only thing still saying no.</p>
+      </div>
+      <div class="cell">
+        <span class="tag">Teaching and demos</span>
+        <p>You're handing an agent to someone learning. A hard ceiling turns an expensive mistake into a message on screen.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ USING IT ============ -->
+  <section>
+    <h2>Using it</h2>
+    <div class="col">
+      <h3>Two commands to install, five to live with</h3>
+      <p>
+        Installing it registers the checkpoint and writes a settings file with starting limits of
+        <span class="num">$20</span> per command, <span class="num">$50</span> per session, and
+        <span class="num">$200</span> per day. Change them to whatever a bad day is worth to you.
+      </p>
+    </div>
+
+    <div class="term">
+<pre><span class="c-muted">$</span> npm i -g breakerbox
+<span class="c-muted">$</span> breakerbox init</pre>
+    </div>
+
+    <div class="cmds">
+      <div class="cmd" tabindex="0"><code>breakerbox check "…"</code><span>Ask what would happen to a command, without running it</span></div>
+      <div class="cmd" tabindex="0"><code>breakerbox status</code><span>See how much of each limit you've used</span></div>
+      <div class="cmd" tabindex="0"><code>breakerbox log</code><span>Review what's been spent, and on what</span></div>
+      <div class="cmd" tabindex="0"><code>breakerbox reset --session</code><span>Clear the running total and carry on</span></div>
+      <div class="cmd" tabindex="0"><code>breakerbox doctor</code><span>Confirm it's really protecting you — it tries a real block</span></div>
+    </div>
+
+    <div class="col" style="margin-top:28px">
+      <p>
+        <strong>doctor</strong> is worth running once. It doesn't just check that files are in place —
+        it sends a fake request for eight GPU servers through the real checkpoint and confirms it comes
+        back refused. If something is misconfigured, you find out then rather than during an incident.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ LIMITS ============ -->
+  <section>
+    <h2>Being straight with you</h2>
+    <div class="col">
+      <h3>What breakerbox cannot see</h3>
+      <p>
+        A safety tool that oversells itself is worse than none, because you stop paying attention.
+        Here is exactly where the protection ends.
+      </p>
+    </div>
+
+    <div class="limits">
+      <ul>
+        <li><b>It's a spend guard, not a security cage.</b> It reads the command it's shown. A cost buried inside a script it launches, or deliberately disguised, goes through. It's built to stop runaway agents, not a determined attacker.</li>
+        <li><b>Prices are close, not exact.</b> They're standard list prices, without regional differences or the discounts on your account. They exist to make limits trip at roughly the right moment, not to match your invoice.</li>
+        <li><b>It watches terminal commands only.</b> Other kinds of tool calls pass through untouched today.</li>
+        <li><b>If breakerbox itself breaks, your command still runs.</b> A bug in a safety tool shouldn't stop you working. You can flip this to the opposite behaviour in one setting if you'd rather it fail shut.</li>
+        <li><b>It counts what you started, not what you shut down.</b> If you terminate a server an hour later, breakerbox doesn't know. The 24-hour figure is a decision aid, not accounting.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <span>MIT licensed</span>
+    <span>No account, no proxy, no telemetry</span>
+    <span>ShopDevX</span>
+  </footer>
+
+</div>
