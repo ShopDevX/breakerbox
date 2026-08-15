@@ -1,6 +1,6 @@
 {
   "name": "@shopdevx/breakerbox",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Hard spend caps and a kill-switch for the non-LLM actions your AI coding agent takes.",
   "type": "module",
   "license": "MIT",
