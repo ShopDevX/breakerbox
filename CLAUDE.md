@@ -8,7 +8,7 @@ Full context, transfer notes and roadmap: **`HANDOVER.md`** — read it before n
 ## Commands
 
 ```bash
-node --test "test/**/*.test.js"     # 67 tests, expect 0 failures
+node --test                         # 67 tests, expect 0 failures (built-in discovery; the glob only works on Node >=21)
 node bin/breakerbox.js check "..."  # dry-run the policy engine
 node bin/breakerbox.js doctor       # end-to-end install check
 ```

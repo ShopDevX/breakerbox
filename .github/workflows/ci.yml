@@ -17,6 +17,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      # zero runtime dependencies and no build step — nothing to install
+      # zero runtime dependencies and no build step — nothing to install.
+      # `node --test` uses built-in file discovery — the "test/**/*.test.js" glob
+      # only expands on Node >=21, so it would fail the 18.17 / 20 matrix legs.
       - name: test
-        run: node --test "test/**/*.test.js"
+        run: node --test

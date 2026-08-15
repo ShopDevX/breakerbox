@@ -76,7 +76,7 @@ Run these three on the new machine. All three passed here before handover.
 
 ```bash
 # 1. Test suite — expect "# pass 67 / # fail 0"
-node --test "test/**/*.test.js"
+node --test   # built-in discovery; the "test/**" glob only expands on Node >=21
 
 # 2. The flagship case — expect DENY at $6292.34, exit code 2
 node bin/breakerbox.js check "aws ec2 run-instances --instance-type p4d.24xlarge --count 8"
