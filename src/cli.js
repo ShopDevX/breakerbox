@@ -1,11 +1,23 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import { runHook } from './hook.js';
 import { cmdInit } from './commands/init.js';
 import { cmdStatus } from './commands/status.js';
 import { cmdLog } from './commands/log.js';
 import { cmdCheck } from './commands/check.js';
+import { cmdPlan } from './commands/plan.js';
 import { cmdReset } from './commands/reset.js';
 import { cmdDoctor } from './commands/doctor.js';
 import { c } from './util/ui.js';
+
+/** Read the shipped version lazily — never on the hook hot path. */
+function version() {
+  try {
+    const pkg = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json');
+    return JSON.parse(readFileSync(pkg, 'utf8')).version;
+  } catch { return '0.0.0'; }
+}
 
 const HELP = `
 ${c.bold('breakerbox')} — hard spend caps and a kill-switch for what your AI agent runs.
@@ -16,6 +28,7 @@ ${c.bold('Usage')}
 ${c.bold('Commands')}
   init [--global] [--force]   Install the PreToolUse/PostToolUse hooks and write a config
   check "<command>"           Dry-run: what would breakerbox decide about this command?
+  plan <plan.json>            Spend preflight for a Terraform plan (terraform show -json)
   status                      Spend against each cap right now
   log [-n 20] [--json]        Recent committed actions
   reset [--session <id>]      Clear ledger state (--day, --all)
@@ -76,6 +89,8 @@ export async function main(argv) {
       return cmdInit(flags);
     case 'check':
       return cmdCheck(positional, flags);
+    case 'plan':
+      return cmdPlan(positional, flags);
     case 'status':
       return cmdStatus(flags);
     case 'log':
@@ -87,7 +102,7 @@ export async function main(argv) {
     case 'version':
     case '--version':
     case '-v':
-      process.stdout.write('0.1.0\n');
+      process.stdout.write(`${version()}\n`);
       return undefined;
     case undefined:
     case 'help':

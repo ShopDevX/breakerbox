@@ -156,6 +156,44 @@ export function decide({ command, config, root, sessionId, permissionMode, now =
   return { decision, reasons, charged, estimate: { ...raw, findings }, spent };
 }
 
+/**
+ * Score a priced Terraform plan against the same caps a command is scored by.
+ *
+ * A plan apply is one action, so its total is checked against the per-action cap
+ * as well as the running session/daily spend. There is no loop or velocity to
+ * consider here — a plan is a static diff — so this is the dollar-cap subset of
+ * `decide`, kept separate to avoid entangling the hot-path command engine with a
+ * preflight surface it never runs in.
+ */
+export function decidePlan({ estimate, config, root, sessionId, now = new Date() }) {
+  const reasons = [];
+  const charged = Number(estimate.findings.reduce((s, f) => s + f.charged, 0).toFixed(2));
+  const spent = totals(root, { sessionId, now });
+  const caps = config.caps;
+  let decision = 'allow';
+
+  if (charged > caps.action) {
+    decision = stronger(decision, config.onBreach);
+    reasons.push(`Plan totals ${usd(charged)}, over the per-action cap of ${usd(caps.action)}.`);
+  }
+  if (spent.session + charged > caps.session) {
+    decision = stronger(decision, config.onBreach);
+    reasons.push(
+      `Session spend would reach ${usd(spent.session + charged)} `
+      + `(${usd(spent.session)} already committed + ${usd(charged)} for this plan), over the session cap of ${usd(caps.session)}.`,
+    );
+  }
+  if (spent.daily + charged > caps.daily) {
+    decision = stronger(decision, config.onBreach);
+    reasons.push(`Today's spend would reach ${usd(spent.daily + charged)}, over the daily cap of ${usd(caps.daily)}.`);
+  }
+  if (decision === 'allow' && reasons.length === 0) {
+    reasons.push(`Plan totals ${usd(charged)} over a ${config.horizonHours}h horizon; within all caps.`);
+  }
+
+  return { decision, reasons, charged, spent, estimate };
+}
+
 /** Human-readable summary of what a command was found to do. */
 export function summarize(findings) {
   return findings.map((f) => {
