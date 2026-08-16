@@ -132,6 +132,40 @@ reports `unknownBlastRadius` and escalates instead of pretending to price it.
 
 ---
 
+## Spend preflight for Terraform
+
+`terraform apply` is opaque at the command line — which is why the live hook
+returns `unknownBlastRadius` and asks. But once you render the plan to JSON, the
+priced diff is right there. `breakerbox plan` reads it and gives the plan the same
+DENY/ASK treatment a command gets:
+
+```bash
+terraform plan -out tfplan
+terraform show -json tfplan > plan.json
+breakerbox plan plan.json
+```
+
+```
+DENY  estimated $1197.32
+
+Priced resources
+  aws_instance.trainer      $786.54   tf.aws_instance · $32.7726/hr · p4d.24xlarge
+  aws_eks_node_group.gpu    $408.38   tf.aws_eks_node_group · $5.6720/hr · qty 3 · g5.12xlarge
+  aws_eks_cluster.main        $2.40   tf.aws_eks_cluster · $0.1000/hr
+
+Coverage
+  Priced 3 of 4 created resource(s); 1 unpriced (no rule yet).
+```
+
+Only resources whose plan action includes `create` are billed — that covers fresh
+creates and replaces; updates and deletes are left alone. It reuses the same price
+catalog and 24h horizon as the command engine, and reports how many resources it
+couldn't price rather than guessing. This is an **opt-in step**: it is deliberately
+*not* wired into the hook, so the hot path stays pure string-parsing with no
+subprocess and no Terraform dependency. Run it in CI before `apply`, or by hand.
+
+---
+
 ## Ledger: decide on Pre, charge on Post
 
 `PreToolUse` writes a *pending intent*. `PostToolUse` promotes it to a committed
@@ -181,6 +215,7 @@ Env overrides: `BREAKERBOX_SESSION_CAP`, `BREAKERBOX_DAILY_CAP`,
 
 ```bash
 breakerbox check "<command>"   # dry-run the policy engine, explain the verdict
+breakerbox plan <plan.json>    # spend preflight for a Terraform plan (terraform show -json)
 breakerbox status              # spend against every cap, with meters
 breakerbox log -n 20           # recent committed actions
 breakerbox reset --session     # clear a session's spend (--day, --all)
@@ -246,7 +281,8 @@ asks why the bill looks like that.
   authoring time rather than apply time
 - Framework adapters beyond Claude Code (LangGraph, CrewAI) via a generic
   subprocess wrapper
-- `terraform plan` output parsing, to replace `unknownBlastRadius` with a real number
+- Auto-trigger the Terraform preflight when `terraform apply <saved-plan>` is seen at the hook (today `breakerbox plan` is opt-in; see "Spend preflight for Terraform")
+- `cloudformation` / CDK / Pulumi plan parsing, the same way the Terraform preflight works
 
 ---
 
