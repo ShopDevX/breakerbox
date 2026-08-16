@@ -223,6 +223,20 @@ it with **least privilege**: during phases that don't need cloud access, strip r
 at all. If the guard never has to evaluate a command, it can never fail open on one.
 Use breakerbox for the phases where the agent legitimately needs a terminal.
 
+### The decision log
+
+When someone wakes up to a surprising bill, three outcomes look identical from the
+outside: the guard ran and priced it under the cap, the guard ran and crashed into
+fail-open, or the guard was never invoked at all. Tests prove the code does the right
+thing in each case — they don't tell you which case you were in on the day.
+
+So breakerbox appends one line per evaluated command to `.breakerbox/decisions.jsonl`:
+the command, the verdict (`allow`/`ask`/`deny`), and **which `failMode` was live**. A
+crash is recorded as `outcome: "evaluation-error"` rather than vanishing. And the
+*absence* of a line during the incident window is itself the signal that the hook
+wasn't wired. It's cheap, local-only, and doubles as the artifact you hand to whoever
+asks why the bill looks like that.
+
 ---
 
 ## Roadmap

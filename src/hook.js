@@ -26,6 +26,23 @@ function logError(root, err) {
 }
 
 /**
+ * Append one line to the decision log for every command breakerbox evaluates.
+ *
+ * Tests prove the code does the right thing in each case; the log is what tells you
+ * *which* case you were actually in on the day of the bill. Three outcomes look
+ * identical from outside — priced under the cap, crashed into fail-open, or never
+ * invoked at all — and only a per-invocation record separates them. The absence of
+ * a line during the incident window is itself the signal that the hook wasn't wired.
+ */
+function logDecision(root, entry) {
+  try {
+    const p = paths(root);
+    if (!existsSync(p.home)) mkdirSync(p.home, { recursive: true });
+    appendFileSync(p.decisions, JSON.stringify({ ts: new Date().toISOString(), ...entry }) + '\n', 'utf8');
+  } catch { /* the audit line must never break the hook */ }
+}
+
+/**
  * Emit a PreToolUse decision.
  *
  * Allow is expressed as *silence*, not as `permissionDecision: "allow"`.
@@ -95,6 +112,15 @@ async function handlePreToolUse(payload, root, config) {
     permissionMode: payload.permission_mode,
   });
 
+  logDecision(root, {
+    session: payload.session_id,
+    command: command.length > 400 ? `${command.slice(0, 400)}…` : command,
+    verdict: result.decision,          // allow | ask | deny
+    failMode: config.failMode,         // which policy was live for this call
+    charged: Number(result.charged) || 0,
+    priced: (result.estimate?.findings?.length || 0) > 0,
+  });
+
   // Record the intent so PostToolUse can commit it if the tool actually runs.
   if (!result.skipLedger && result.decision !== 'deny' && result.charged > 0) {
     writePending(root, {
@@ -154,11 +180,21 @@ export async function runHook() {
     }
   } catch (err) {
     logError(root, err);
+    let failMode = 'open';
     try {
       const { config } = loadConfig(root);
-      if (config.failMode === 'closed') {
+      failMode = config.failMode;
+      if (failMode === 'closed') {
         emit('ask', '[breakerbox] Guardrail failed to evaluate this command. Failing closed as configured.');
       }
     } catch { /* fail open */ }
+    // The guard ran but crashed. Record which way it fell, so a postmortem can tell
+    // this apart from a clean allow — or from breakerbox never being invoked at all.
+    logDecision(root, {
+      verdict: failMode === 'closed' ? 'ask' : 'allow',
+      outcome: 'evaluation-error',
+      failMode,
+      error: String(err?.message || err).slice(0, 300),
+    });
   }
 }
