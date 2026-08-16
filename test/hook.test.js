@@ -154,6 +154,30 @@ test('a broken config does not brick the agent (fails open)', () => {
   }
 });
 
+test('fails CLOSED — an evaluation failure becomes an explicit ask, not a silent allow', () => {
+  // The dangerous failure mode for a PreToolUse guard is the silent one: it crashes,
+  // the call proceeds, and nothing says so. With failMode:"closed" the catch must turn
+  // that into an explicit `ask`. Force the crash with malformed stdin so the failure
+  // path is exercised end-to-end through the real binary.
+  const root = tmpRoot();
+  try {
+    writeFileSync(path.join(root, 'breakerbox.config.json'), JSON.stringify({ failMode: 'closed' }), 'utf8');
+    const res = spawnSync(process.execPath, [ENTRY, 'hook'], {
+      input: 'not json at all',
+      cwd: root, // so process.cwd() inside the hook resolves to this project's config
+      encoding: 'utf8',
+      timeout: 20000,
+    });
+    assert.equal(res.status, 0, 'still exits 0 — decisions are expressed as JSON');
+    const json = (() => { try { return JSON.parse(res.stdout); } catch { return null; } })();
+    assert.ok(json, 'failMode:closed must emit a decision, not stay silent');
+    assert.equal(json.hookSpecificOutput.permissionDecision, 'ask',
+      'a crash under failMode:closed must ask, never silently allow');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('config caps are honoured from disk', () => {
   const root = tmpRoot();
   try {

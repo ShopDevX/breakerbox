@@ -215,6 +215,14 @@ stop watching.
   whether you later terminated the instance. The 24h horizon is a heuristic for
   "is this worth stopping", not an accrual system.
 
+### Belt and suspenders
+
+breakerbox is a backstop, not the only line of defence. The strongest setup pairs
+it with **least privilege**: during phases that don't need cloud access, strip raw
+`Bash` from Claude's tool list (`--allowedTools`) so no cloud command can be issued
+at all. If the guard never has to evaluate a command, it can never fail open on one.
+Use breakerbox for the phases where the agent legitimately needs a terminal.
+
 ---
 
 ## Roadmap
