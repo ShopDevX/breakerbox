@@ -184,7 +184,7 @@
 
   <!-- ============ MASTHEAD ============ -->
   <header class="mast">
-    <p class="eyebrow"><span>Open source</span><span>MIT</span><span>ShopDevX</span><span>v0.1.0</span><span>Zero dependencies</span></p>
+    <p class="eyebrow"><span>Open source</span><span>MIT</span><span>ShopDevX</span><span>v0.1.2</span><span>Zero dependencies</span></p>
     <h1>breakerbox</h1>
     <p class="tagline">a spend limit for what your AI agent does outside the chat</p>
     <p class="lede">
@@ -340,6 +340,21 @@
         <li><b><code>failMode</code> defaults to <code>open</code>.</b> If breakerbox itself errors, the command proceeds and the error is logged. A bug in a safety tool must not brick your agent. Set <code>"failMode": "closed"</code> to invert that.</li>
         <li><b>Allow is expressed as silence.</b> breakerbox never emits an explicit <code>allow</code>, because that would bypass Claude Code's own permission checks. It only ever speaks up to <b>deny</b> or <b>ask</b>.</li>
       </ul>
+    </div>
+  </section>
+
+  <!-- ============ BELT AND SUSPENDERS ============ -->
+  <section id="pairing">
+    <h2>Belt and suspenders</h2>
+    <h3>A backstop, not your only line of defence.</h3>
+    <div class="col">
+      <p>
+        The strongest setup pairs breakerbox with <strong>least privilege</strong>. During phases that
+        don't need cloud access, strip raw <span class="ic">Bash</span> from Claude's tool list with
+        <span class="ic">--allowedTools</span> — no cloud command can be issued at all, so the guard
+        never has to evaluate one, and can't fail open on one. Use breakerbox for the phases where the
+        agent legitimately needs a terminal.
+      </p>
     </div>
   </section>
 
