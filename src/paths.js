@@ -46,6 +46,7 @@ export function paths(root) {
     ledger: path.join(home, 'ledger.jsonl'),
     pending: path.join(home, 'pending'),
     errors: path.join(home, 'errors.log'),
+    decisions: path.join(home, 'decisions.jsonl'),
     localConfig: path.join(home, 'config.json'),
     projectConfig: path.join(root, 'breakerbox.config.json'),
     claudeSettings: path.join(root, '.claude', 'settings.json'),

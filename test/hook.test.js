@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +12,13 @@ const ENTRY = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '
 
 function tmpRoot() {
   return mkdtempSync(path.join(os.tmpdir(), 'breakerbox-hook-'));
+}
+
+function readDecisions(root) {
+  try {
+    return readFileSync(path.join(root, '.breakerbox', 'decisions.jsonl'), 'utf8')
+      .trim().split('\n').filter(Boolean).map((l) => JSON.parse(l));
+  } catch { return []; }
 }
 
 /** Invoke the real binary the way Claude Code would. */
@@ -173,6 +180,36 @@ test('fails CLOSED — an evaluation failure becomes an explicit ask, not a sile
     assert.ok(json, 'failMode:closed must emit a decision, not stay silent');
     assert.equal(json.hookSpecificOutput.permissionDecision, 'ask',
       'a crash under failMode:closed must ask, never silently allow');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('writes one decision line per evaluated command — the postmortem trail', () => {
+  const root = tmpRoot();
+  try {
+    invoke(pre('git status'), root); // allowed
+    invoke(pre('aws ec2 run-instances --instance-type p4d.24xlarge --count 8'), root); // denied
+    const log = readDecisions(root);
+    assert.equal(log.length, 2, 'every evaluated Bash command leaves a line');
+    assert.equal(log[0].verdict, 'allow');
+    assert.equal(log[1].verdict, 'deny');
+    assert.ok(log.every((l) => l.failMode && l.ts), 'each line records the live failMode and a timestamp');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('the decision log tells a crash apart from a clean allow', () => {
+  const root = tmpRoot();
+  try {
+    writeFileSync(path.join(root, 'breakerbox.config.json'), JSON.stringify({ failMode: 'closed' }), 'utf8');
+    spawnSync(process.execPath, [ENTRY, 'hook'], { input: 'not json at all', cwd: root, encoding: 'utf8', timeout: 20000 });
+    const log = readDecisions(root);
+    assert.equal(log.length, 1);
+    assert.equal(log[0].outcome, 'evaluation-error', 'a crash is recorded, never silent');
+    assert.equal(log[0].verdict, 'ask', 'under failMode:closed the crash asks');
+    assert.equal(log[0].failMode, 'closed', 'the log names which failMode was live');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

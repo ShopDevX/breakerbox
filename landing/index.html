@@ -184,7 +184,7 @@
 
   <!-- ============ MASTHEAD ============ -->
   <header class="mast">
-    <p class="eyebrow"><span>Open source</span><span>MIT</span><span>ShopDevX</span><span>v0.1.2</span><span>Zero dependencies</span></p>
+    <p class="eyebrow"><span>Open source</span><span>MIT</span><span>ShopDevX</span><span>v0.1.3</span><span>Zero dependencies</span></p>
     <h1>breakerbox</h1>
     <p class="tagline">a spend limit for what your AI agent does outside the chat</p>
     <p class="lede">
@@ -354,6 +354,12 @@
         <span class="ic">--allowedTools</span> — no cloud command can be issued at all, so the guard
         never has to evaluate one, and can't fail open on one. Use breakerbox for the phases where the
         agent legitimately needs a terminal.
+      </p>
+      <p>
+        And every command it <em>does</em> evaluate is written to a local
+        <span class="ic">decisions.jsonl</span> — the verdict and which fail-mode was live. So when a
+        bill looks wrong, you can tell a priced-under-cap call from a crash-into-fail-open from a hook
+        that was never wired. The three look identical from the outside; only the log separates them.
       </p>
     </div>
   </section>
